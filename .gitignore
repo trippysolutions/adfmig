@@ -1,0 +1,14 @@
+target/
+*.class
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Written by scripts/test-database/fetch-hr-schema.sh, pointing at the fetched schema outside
+# the project.
+scripts/test-database/.env
+
+# Anything a walkthrough produced beside the project.
+adfmig-output/
+reports/

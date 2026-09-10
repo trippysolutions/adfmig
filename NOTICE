@@ -1,0 +1,13 @@
+adfmig — Oracle ADF to Spring Boot migration assessment
+
+Copyright (c) 2026 Trippy Solutions.
+trippysolutions.com
+
+This software is licensed under the MIT Licence. See LICENSE.
+
+adfmig Pro, which generates Spring Boot projects from the applications this
+tool assesses, is a separate proprietary product and is not part of this
+repository.
+
+Oracle, ADF, JDeveloper and WebLogic are trademarks of Oracle Corporation.
+This software is not affiliated with, endorsed by, or sponsored by Oracle.
