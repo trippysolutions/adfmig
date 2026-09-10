@@ -1,0 +1,12 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Generating the Spring Boot project
+    url: https://trippysolutions.com
+    about: >
+      Generation is adfmig Pro and is not part of this repository. Questions about it, about
+      licensing, or about a migration engagement go here.
+  - name: Something that should not be public
+    url: https://trippysolutions.com
+    about: >
+      A security issue, or metadata you cannot post in the open. Get in touch privately rather
+      than opening an issue.
