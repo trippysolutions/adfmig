@@ -20,23 +20,9 @@ import picocli.CommandLine.Command;
         descriptionHeading = "%n",
         commandListHeading = "%nCommands%n",
         optionListHeading = "%nOptions%n",
+        // The footer is set in main() instead, because it differs between the two builds and
+        // help that offers a command this jar does not have is worse than no help.
         footerHeading = "%n",
-        footer = {
-                "Getting started",
-                "  adfmig                              walk through one migration",
-                "  adfmig apps ~/adf                   what is in an estate, and what it would take",
-                "  adfmig report ~/adf/Payments        assess one application",
-                "  adfmig generate ~/adf/Payments      generate its replacement",
-                "",
-                "Unfamiliar with ADF?",
-                "  adfmig glossary                     what each ADF term becomes",
-                "",
-                "Without a licence adfmig surveys an estate and assesses one application, which is",
-                "enough to decide whether a migration is worth doing. See 'adfmig license'.",
-                "",
-                "Trippy Solutions  ·  trippysolutions.com",
-                ""
-        },
         subcommands = { AppsCommand.class, ScanCommand.class, AnalyzeCommand.class, ReportCommand.class,
                         StartCommand.class, GlossaryCommand.class })
 public final class AdfMig implements Runnable {
@@ -55,6 +41,8 @@ public final class AdfMig implements Runnable {
         }
     }
 
+    @CommandLine.Spec CommandLine.Model.CommandSpec spec;
+
     @Override
     public void run() {
         // Someone who has just unzipped this and typed the name has not chosen a command yet.
@@ -62,7 +50,41 @@ public final class AdfMig implements Runnable {
         if (Terminal.isInteractive()) {
             System.exit(new CommandLine(new StartCommand()).execute());
         }
-        CommandLine.usage(this, System.out);
+        // Through the spec, so this prints the footer main() built rather than a fresh copy of
+        // the annotation's.
+        spec.commandLine().usage(System.out);
+    }
+
+    /**
+     * What to show someone reading help, which is not the same in the two builds. The free tool
+     * must not offer 'generate' as though typing it would work, and the paid one must not
+     * advertise itself to someone who has already bought it.
+     */
+    private static String[] footer(boolean pro) {
+        var lines = new java.util.ArrayList<String>();
+        lines.add("Getting started");
+        lines.add("  adfmig                              walk through one migration");
+        lines.add("  adfmig apps ~/adf                   what is in an estate, and what it would take");
+        lines.add("  adfmig report ~/adf/Payments        assess one application");
+        if (pro) {
+            lines.add("  adfmig generate ~/adf/Payments      generate its replacement");
+            lines.add("  adfmig license                      what is licensed, and to whom");
+        }
+        lines.add("");
+        lines.add("Unfamiliar with ADF?");
+        lines.add("  adfmig glossary                     what each ADF term becomes");
+        lines.add("");
+        if (pro) {
+            lines.add("Assessment needs no licence. Generating a replacement does; 'adfmig license' shows");
+            lines.add("what is installed.");
+        } else {
+            lines.add("Assessment is complete here and has no limits: any number of applications, no");
+            lines.add("licence, no account. Generating the Spring Boot replacement is adfmig Pro.");
+        }
+        lines.add("");
+        lines.add(Branding.COMPANY + "  ·  " + Branding.WEBSITE);
+        lines.add("");
+        return lines.toArray(String[]::new);
     }
 
     /** Exit code for work a licence refused, distinct from a genuine failure. */
@@ -80,8 +102,9 @@ public final class AdfMig implements Runnable {
 
         // Whatever is installed adds its own commands. The free tool knows only that something
         // might, never what: the parts that are sold are not present in it to be found.
-        ProExtension.find().ifPresent(extension ->
-                extension.commands().forEach(commandLine::addSubcommand));
+        var installed = ProExtension.find();
+        installed.ifPresent(extension -> extension.commands().forEach(commandLine::addSubcommand));
+        commandLine.getCommandSpec().usageMessage().footer(footer(installed.isPresent()));
 
         System.exit(commandLine
                 // Someone typing a command that is sold rather than given away has not made a
