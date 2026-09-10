@@ -107,7 +107,15 @@ public final class ReportCommand implements Callable<Integer> {
         out.println("=".repeat(88));
         out.println(a.name());
         out.println("=".repeat(88));
-        out.printf("  %-30s %s%n", "Backend migration", "%.1f person-days".formatted(a.backendDays()));
+        if (!a.hasBusinessModel()) {
+            // Naming it beats printing 0.0 person-days, which reads like a broken estimate rather
+            // than a finding. There is nothing here to migrate, and that is worth saying.
+            out.printf("  %-30s %s%n", "Backend migration",
+                    "nothing to migrate — no entities, view objects or application modules");
+        } else {
+            out.printf("  %-30s %s%n", "Backend migration",
+                    "%.1f person-days".formatted(a.backendDays()));
+        }
         if (a.pageDefinitions() > 0) {
             out.printf("  %-30s %s%n", "Front end rebuild (separate)",
                     "%.0f person-days (%d page definitions)"
