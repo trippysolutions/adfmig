@@ -67,8 +67,25 @@ public record ApplicationAssessment(
         return effort.applicationSetup();
     }
 
+    /**
+     * Whether there is anything here to migrate at all.
+     *
+     * <p>A JDeveloper workspace can hold projects that are not applications: schema and DDL
+     * projects, a library of nothing but configuration, a shell that exists to be depended on.
+     * They have no entity, no view object and no application module, and there is no backend in
+     * them to replace.
+     */
+    public boolean hasBusinessModel() {
+        return !artifacts.isEmpty();
+    }
+
     /** Backend migration total, excluding any front-end rebuild. */
     public double backendDays() {
+        // Scaffolding is owed only when there is something to put in the project. Charging five
+        // days to stand up an empty Spring Boot application is how an estate total stops being
+        // defensible — on a public sample application it was a quarter of the whole figure, for a
+        // project containing no business model whatsoever.
+        if (!hasBusinessModel()) return 0;
         return componentDays() + securityDays() + contractTestDays() + setupDays();
     }
 
