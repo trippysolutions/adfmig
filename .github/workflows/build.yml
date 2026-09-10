@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 21 is the minimum the tool supports; 25 is the current LTS. Terminal detection
+        # differs between them (Console.isTerminal arrived in 22), so both are worth running.
+        java: ['21', '25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+          cache: maven
+
+      - run: mvn -B package
+
+      - name: The jar runs
+        run: |
+          java -jar adfmig-cli/target/adfmig.jar --version
+          java -jar adfmig-cli/target/adfmig.jar --help
+          java -jar adfmig-cli/target/adfmig.jar glossary
+
+      - name: Nothing proprietary is in it
+        # The generator and the licensing are a separate product and must never appear here.
+        # Written without a pipe on purpose: `unzip -l | grep -q` makes unzip die of SIGPIPE,
+        # and under `set -o pipefail` that reads as a failed pipeline — so the check would
+        # pass whether or not the class was there.
+        run: |
+          unzip -l adfmig-cli/target/adfmig.jar > /tmp/jar.txt
+          for forbidden in com/adfmig/generator com/adfmig/license signing-key; do
+            if grep -q "$forbidden" /tmp/jar.txt; then
+              echo "::error::$forbidden is in the open jar"
+              exit 1
+            fi
+          done
+          echo "no generator, no licensing, no key"
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == '21'
+        with:
+          name: adfmig-jar
+          path: adfmig-cli/target/adfmig.jar

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.adfmig</groupId>
+    <artifactId>adfmig-parent</artifactId>
+    <version>0.1.0</version>
+  </parent>
+
+  <artifactId>adfmig-core</artifactId>
+  <name>adfmig-core</name>
+  <description>Intermediate representation and analysis model. No third-party runtime dependencies.</description>
+
+  <build>
+    <resources>
+      <!-- Only the version resource is filtered. Filtering everything would corrupt the signing
+           key, which contains characters Maven would try to interpret. -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes><include>adfmig-version.properties</include></includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes><exclude>adfmig-version.properties</exclude></excludes>
+      </resource>
+    </resources>
+  </build>
+</project>

@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - run: mvn -B package
+
+      - name: The tag matches the build
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          reported="$(java -jar adfmig-cli/target/adfmig.jar --version)"
+          case "$reported" in
+            *"$version"*) echo "$reported" ;;
+            *) echo "::error::tag $GITHUB_REF_NAME but the jar reports: $reported"; exit 1 ;;
+          esac
+
+      - run: cp adfmig-cli/target/adfmig.jar "adfmig-${GITHUB_REF_NAME#v}.jar"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: adfmig-*.jar
+          generate_release_notes: true
+          body: |
+            Requires JDK 21 or later.
+
+            ```
+            java -jar adfmig-<version>.jar apps ~/adf
+            ```
+
+            Assessment, with no limits. Generating the Spring Boot project is
+            [adfmig Pro](https://trippysolutions.com).
