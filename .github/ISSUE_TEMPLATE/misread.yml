@@ -1,0 +1,48 @@
+name: adfmig read my application wrong
+description: It missed something, misclassified it, or reported a number that is clearly wrong.
+labels: [misread]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful kind of report. adfmig exists because real ADF applications
+        turn out not to match what the documentation implies, and almost every improvement in it
+        came from a file that surprised it.
+
+        **Do not paste anything confidential.** No credentials, no customer data, no proprietary
+        business logic. If the file that confused it cannot be shared, describe its shape — the
+        root element, the attributes, what is unusual about it. That is often enough.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The first line of `adfmig --version`.
+      placeholder: adfmig 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what you got
+      placeholder: |
+        It reported 0 entity objects. The application has 34, under Model/src/model/entities.
+    validations:
+      required: true
+  - type: textarea
+    id: metadata
+    attributes:
+      label: The metadata that caused it
+      description: >
+        The XML it read wrong, with anything sensitive removed — or just its first few lines.
+        The declared encoding and the root element matter more than the content.
+      render: xml
+  - type: input
+    id: java
+    attributes:
+      label: JDK and OS
+      placeholder: Temurin 21.0.5, macOS 15
+  - type: textarea
+    id: jdeveloper
+    attributes:
+      label: Which JDeveloper wrote the application, if you know
+      placeholder: 12.2.1.4

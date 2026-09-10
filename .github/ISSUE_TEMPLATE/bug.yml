@@ -1,0 +1,31 @@
+name: Something failed or crashed
+description: A command exited with an error, hung, or produced output that is unusable.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: adfmig 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: The command you ran
+      placeholder: adfmig report ~/apps/Payments -o ./out
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What it printed
+      description: The whole thing, including the stack trace if there was one.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: java
+    attributes:
+      label: JDK and OS
+      placeholder: Temurin 21.0.5, macOS 15

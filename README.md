@@ -1,5 +1,10 @@
 # adfmig
 
+[![build](https://github.com/trippysolutions/adfmig/actions/workflows/build.yml/badge.svg)](https://github.com/trippysolutions/adfmig/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/trippysolutions/adfmig?label=release)](https://github.com/trippysolutions/adfmig/releases/latest)
+[![licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+[![JDK](https://img.shields.io/badge/JDK-21%2B-orange)](https://adoptium.net)
+
 **Trippy Solutions** · [trippysolutions.com](https://trippysolutions.com)
 
 Tells you what it would take to move an Oracle ADF application to Spring Boot.
@@ -79,6 +84,25 @@ Which of two things you have. It decides the size of the job more than anything 
 An application that already publishes REST can be replaced behind its existing callers. One that is
 ADF Faces only cannot, because its API is its screens.
 
+## Updates
+
+adfmig never checks for them. It makes no network call of any kind — not for updates, not for
+telemetry — because it is run inside networks that reach nothing, by people who need to be able to
+say that no code left the building. An update check would be the one thing that broke that.
+
+So new versions do not arrive on their own. To hear about them, **Watch → Custom → Releases** on
+this repository, or read [CHANGELOG.md](CHANGELOG.md).
+
+Updating is replacing one file. There is no installer, no daemon, nothing in your home directory,
+and no state to migrate — download the new jar and delete the old one. An older jar keeps working
+forever; nothing expires and nothing is revoked.
+
+## Something read wrong?
+
+[Open an issue](https://github.com/trippysolutions/adfmig/issues/new/choose). If adfmig
+misread your application, the ADF file that confused it — with anything sensitive removed — is the
+single most useful thing you can send. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Trying it
 
 The tool is validated against public ADF sample applications rather than assumptions about the
@@ -120,10 +144,6 @@ you look at the project, whether or not git ignores it.
 
 ## Contributing
 
-Issues are welcome, particularly ones with the ADF metadata that caused them. This tool exists
-because real ADF applications turned out not to match what the documentation implies, and every
-odd file makes it better: XML declaring an encoding it is not in, expert-mode SQL, `.bcs` Groovy,
-namespaced connection definitions. If adfmig reads your application badly, the file that confused
-it is the most useful thing you can send.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go privately, per [SECURITY.md](SECURITY.md).
 
 MIT licensed. See [LICENSE](LICENSE).
