@@ -22,6 +22,8 @@ public enum DiagnosticCode {
 
     /** An Oracle runtime type was replaced by its Java equivalent. */
     ADF_TYPE_MAPPED(Severity.INFO, "ADF runtime type mapped to a Java type"),
+    TYPE_NOT_PORTABLE(Severity.WARNING, "Attribute type has no equivalent outside ADF"),
+    VIEW_NOT_DATABASE_BACKED(Severity.WARNING, "View object does not read from the database"),
 
     /** A declarative ADF rule became a Bean Validation constraint with the same meaning. */
     VALIDATION_TRANSLATED(Severity.INFO, "Declarative validation rule translated"),
@@ -119,6 +121,13 @@ public enum DiagnosticCode {
 
     /** JPA has no identity to map. Inventing a key would change what the application means. */
     NO_PRIMARY_KEY(Severity.SKIPPED, "Skipped: entity has no primary key"),
+
+    /** The entity extends another. Its key, and most of its columns, are on the parent. */
+    ENTITY_EXTENDS_ANOTHER(Severity.SKIPPED, "Skipped: entity extends another entity"),
+
+    /** The key has several columns, so one path variable cannot address a row. */
+    COMPOSITE_KEY_NOT_ADDRESSABLE(
+            Severity.SKIPPED, "Skipped: single-row endpoints for a composite key"),
 
     /** The view object is populated by Java code, not by a query. Nothing to generate from. */
     PROGRAMMATIC_VIEW_OBJECT(Severity.SKIPPED, "Skipped: view object is populated by code"),

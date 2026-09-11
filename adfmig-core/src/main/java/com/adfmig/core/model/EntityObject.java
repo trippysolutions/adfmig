@@ -28,7 +28,14 @@ public record EntityObject(
         List<Accessor> accessors,
         List<Constraint> constraints,
         List<Validator> validators,
-        String sourcePath) {
+        String sourcePath,
+        /** The entity this one extends, or null. ADF writes the child's own columns only. */
+        String extendsEntity) {
+
+    /** True when ADF declared this entity as extending another. */
+    public boolean inherits() {
+        return extendsEntity != null && !extendsEntity.isBlank();
+    }
 
     public String simpleName() {
         int i = fqn.lastIndexOf('.');

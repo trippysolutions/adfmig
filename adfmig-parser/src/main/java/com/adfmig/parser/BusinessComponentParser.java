@@ -32,7 +32,8 @@ final class BusinessComponentParser {
                 accessors(root),
                 constraints(root),
                 validators(root),
-                relativePath));
+                relativePath,
+                Xml.attr(root, "Extends")));
     }
 
     private List<EntityObject.Attribute> entityAttributes(Element root) {
@@ -40,7 +41,7 @@ final class BusinessComponentParser {
         for (Element a : Xml.children(root, "Attribute")) {
             out.add(new EntityObject.Attribute(
                     Xml.attr(a, "Name"),
-                    Xml.attr(a, "ColumnName"),
+                    storedColumn(a),
                     Xml.attr(a, "Type"),
                     Xml.attr(a, "SQLType"),
                     Xml.attr(a, "ColumnType"),
@@ -53,6 +54,29 @@ final class BusinessComponentParser {
                     !Xml.children(a, "TransientExpression").isEmpty()));
         }
         return out;
+    }
+
+    /**
+     * The column an attribute is stored in, or null when it is not stored at all.
+     *
+     * <p>ADF marks a calculated attribute {@code IsPersistent="false"} and then still writes a
+     * ColumnName for it — usually the placeholder {@code $none$}, sometimes a real-looking name.
+     * Taken at face value that becomes a mapped column, which compiles and then fails at startup
+     * with "missing column", because the column was never in the database. Returning null here
+     * puts it through the same path as an attribute that declares no column: not mapped, with a
+     * TODO and a diagnostic saying so.
+     *
+     * <p>{@code $none$} is treated the same way even where IsPersistent is absent, because it is
+     * ADF's own way of writing "no column" and means nothing to a database.
+     */
+    private static String storedColumn(Element a) {
+        String column = Xml.attr(a, "ColumnName");
+        if (column == null || column.isBlank() || "$none$".equalsIgnoreCase(column.trim())) {
+            return null;
+        }
+        String persistent = Xml.attr(a, "IsPersistent");
+        if ("false".equalsIgnoreCase(persistent)) return null;
+        return column;
     }
 
     private List<EntityObject.Accessor> accessors(Element root) {
