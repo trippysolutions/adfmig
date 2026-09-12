@@ -40,7 +40,22 @@ public record ViewObject(
         List<Variable> variables,
         List<Criteria> criteria,
         List<ClientMethod> clientMethods,
-        String sourcePath) {
+        String sourcePath,
+        /**
+         * The view object's WHERE clause, verbatim, or null.
+         *
+         * <p>This is what the query means. It decides which rows the application showed — a
+         * stock report that lists only what is below its reorder point, an order list narrowed
+         * to one customer — and it is written in SQL against entity aliases rather than against
+         * the database's own table names.
+         */
+        String whereClause) {
+
+    /** True when ADF narrowed this query and the narrowing is not just a join predicate. */
+    public boolean hasWhereClause() {
+        return whereClause != null && !whereClause.isBlank()
+                && !whereClause.trim().matches("1\\s*=\\s*1");
+    }
 
     public String simpleName() {
         int i = fqn.lastIndexOf('.');
@@ -70,6 +85,25 @@ public record ViewObject(
         if (customSql != null && !customSql.isBlank()) return customSql;
         if (selectList == null && fromList == null) return null;
         return "SELECT " + selectList + " FROM " + fromList;
+    }
+
+    /**
+     * The query including its WHERE clause, for reading rows the way ADF read them.
+     *
+     * <p>{@link #sql()} leaves the clause off, which is right where it is only used to describe
+     * the shape of a query. It is wrong for running one: the clause is what decides which rows
+     * come back. Kept separate so the two uses cannot be confused.
+     *
+     * <p>The text is ADF's own, unchanged — including Oracle's {@code (+)}, the functions and the
+     * subqueries that have no equivalent in JPQL. Carrying it over verbatim is the point: it runs
+     * against the same database that ran it before.
+     */
+    public String filteredSql() {
+        String base = sql();
+        if (base == null) return null;
+        if (customSql != null && !customSql.isBlank()) return base;   // already whole
+        if (whereClause == null || whereClause.isBlank()) return base;
+        return base + " WHERE " + whereClause;
     }
 
     /** @param entity fully qualified name of the entity object */

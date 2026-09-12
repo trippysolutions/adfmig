@@ -76,6 +76,14 @@ final class BusinessComponentParser {
         }
         String persistent = Xml.attr(a, "IsPersistent");
         if ("false".equalsIgnoreCase(persistent)) return null;
+
+        // ROWID is Oracle's address for a row, not a column in the table: it cannot be created,
+        // selected into a mapping or used as a key by JPA. ADF maps it where a table has nothing
+        // else identifying a row. Carried across as an ordinary column it refuses to start,
+        // because no schema has it — so it is treated as what it is, storage that is not there.
+        String columnType = Xml.attr(a, "ColumnType");
+        if ("ROWID".equalsIgnoreCase(columnType == null ? "" : columnType.trim())) return null;
+
         return column;
     }
 
@@ -228,7 +236,8 @@ final class BusinessComponentParser {
                 variables(root),
                 criteria(root),
                 clientMethods(root),
-                relativePath));
+                relativePath,
+                normalise(Xml.attr(root, "Where"))));
     }
 
     private List<ViewObject.EntityUsage> entityUsages(Element root) {

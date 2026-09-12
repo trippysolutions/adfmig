@@ -65,8 +65,8 @@ the place in the code, so searching for `TODO(adfmig:` finds every one of them.
 ```json
 { "code": "QUERY_FILTER_NOT_CARRIED_OVER",
   "severity": "skipped",
-  "source": "Model/src/oracle/summit/model/views/LowStockVO.xml",
-  "subject": "LowStockVO",
+  "source": "Model/src/com/example/model/views/StockLevelVO.xml",
+  "subject": "StockLevelVO",
   "message": "The query was narrowed by: ... and that is not carried over",
   "action": "Read it through a relationship on the entity, or add it as a native @Query" }
 ```

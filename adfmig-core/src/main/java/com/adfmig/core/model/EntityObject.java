@@ -47,8 +47,19 @@ public record EntityObject(
         return rowClass != null && !rowClass.isBlank();
     }
 
+    /**
+     * The key columns, which are the ones an entity can actually be identified by.
+     *
+     * <p>An attribute ADF marked as the key but stores nowhere is not one. ADF keys a table on
+     * ROWID where nothing else identifies a row, and marks calculated attributes as keys too;
+     * neither is a column, so neither can carry {@code @Id}. Counting them here produces an entity
+     * that is generated, declares no identifier, and is refused at startup.
+     */
     public List<Attribute> primaryKey() {
-        return attributes.stream().filter(Attribute::primaryKey).toList();
+        return attributes.stream()
+                .filter(Attribute::primaryKey)
+                .filter(a -> a.columnName() != null && !a.columnName().isBlank())
+                .toList();
     }
 
     public Optional<Attribute> attribute(String name) {

@@ -83,8 +83,8 @@ public record ApplicationAssessment(
     public double backendDays() {
         // Scaffolding is owed only when there is something to put in the project. Charging five
         // days to stand up an empty Spring Boot application is how an estate total stops being
-        // defensible — on a public sample application it was a quarter of the whole figure, for a
-        // project containing no business model whatsoever.
+        // defensible — measured against a real application with no business model in it, that
+        // charge was a quarter of the whole figure.
         if (!hasBusinessModel()) return 0;
         return componentDays() + securityDays() + contractTestDays() + setupDays();
     }

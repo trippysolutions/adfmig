@@ -160,6 +160,12 @@ public record AdfApplication(
         List<MasterDetail> found = new ArrayList<>();
         List<Endpoint> published = endpoints();
 
+        // A URL derived from a screen is a parent too. ADF wired the relationship between two
+        // view instances; whether the parent happens to be a published resource or a URL this
+        // tool derived changes nothing about the relationship, and insisting on the first left
+        // every relationship in an application that publishes no REST with nowhere to live.
+        List<ScreenEndpoint> screens = screenEndpoints();
+
         for (ApplicationModule module : modules.values()) {
             for (ApplicationModule.ViewLinkUsage usage : module.viewLinkUsages()) {
                 Endpoint master = published.stream()
@@ -167,7 +173,12 @@ public record AdfApplication(
                                 && usage.source().equals(e.resource().viewUsage()))
                         .findFirst()
                         .orElse(null);
-                if (master == null) continue;
+                String masterUrl = master != null ? master.url() : screens.stream()
+                        .filter(screen -> usage.source().equals(screen.viewUsage()))
+                        .map(ScreenEndpoint::url)
+                        .findFirst()
+                        .orElse(null);
+                if (masterUrl == null) continue;
 
                 ViewObject detailView = module.viewUsage(usage.target())
                         .map(ApplicationModule.ViewUsage::viewObject)
@@ -178,6 +189,8 @@ public record AdfApplication(
                 ViewLink link = viewLinks.get(usage.viewLink());
                 found.add(new MasterDetail(
                         master,
+                        masterUrl,
+                        usage.source(),
                         usage.target(),
                         detailView,
                         detailView.entityUsages().isEmpty() ? null

@@ -105,25 +105,21 @@ single most useful thing you can send. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Trying it
 
-The tool is validated against public ADF sample applications rather than assumptions about the
-format:
+Point it at anything with ADF applications underneath — one application, a directory of them, or
+a whole estate. It reads what it finds and reports on all of it:
 
 ```
-./scripts/setup.sh
-adfmig apps ~/adf
+adfmig apps ~/your-adf
+adfmig report ~/your-adf/SomeApplication
 ```
 
-one sample application publishes REST. another is a larger, more realistic sample — seventeen entities, nineteen
-view links — and is the realistic one.
+Nothing is uploaded, and nothing is written outside the directory you name.
 
-## Documentation
-
-- [Analysing an estate](docs/analysing-an-estate.md) — how to find out how big the migration is,
-  in the order the answers are useful
-- [How it works](docs/how-it-works.md) — what it reads, what it writes, what it guarantees and
-  what it cannot do
-- [Diagnostic reference](docs/diagnostics.md) — every code it can report and what each means
-- `adfmig glossary` — what each ADF term becomes
+Before it goes near work that matters it is exercised against a corpus of several hundred real
+ADF applications: each one read, converted, compiled and started against an Oracle database, with
+the result checked against the rows that database holds. Composite keys, entity inheritance,
+expert-mode SQL, polymorphic view rows and Oracle's older outer-join syntax are all in that
+corpus deliberately, because those are the cases that break a migration.
 
 ## What this repository is
 
@@ -145,11 +141,6 @@ adfmig-parser   reads ADF metadata and custom Java into that model
 adfmig-report   renders the assessment
 adfmig-cli      the commands
 ```
-
-Sample applications and fetched schema scripts go to a working directory outside the project,
-`~/adf` by default and `$ADF_DIR` if you would rather they went elsewhere. The corpus
-alone is over 700 MB, and a directory of Oracle samples beside your source is clutter every time
-you look at the project, whether or not git ignores it.
 
 ## Contributing
 

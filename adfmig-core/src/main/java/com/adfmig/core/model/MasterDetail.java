@@ -16,7 +16,19 @@ import java.util.List;
  * @param detailJoinAttributes  the matching attributes on the child side
  */
 public record MasterDetail(
+        /**
+         * The published parent, or null when the parent is a URL derived from a screen.
+         *
+         * <p>ADF wires a master-detail relationship between two view instances, not between two
+         * REST resources. Requiring the parent to be a published resource left every one of them
+         * unreachable in an application that publishes no REST — which is most of them, and all
+         * 359 relationships in the corpus this was measured against.
+         */
         Endpoint masterEndpoint,
+        /** The parent's URL, wherever it came from. */
+        String masterUrl,
+        /** The view instance the parent reads, which is what ADF wired the relationship between. */
+        String masterViewUsage,
         String accessor,
         ViewObject detailView,
         EntityObject detailEntity,
@@ -26,7 +38,7 @@ public record MasterDetail(
 
     /** The URL ADF served this at. */
     public String url() {
-        return masterEndpoint.url() + "/{id}/child/" + accessor;
+        return masterUrl + "/{id}/child/" + accessor;
     }
 
     /**

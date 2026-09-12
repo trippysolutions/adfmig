@@ -122,6 +122,13 @@ public enum DiagnosticCode {
     /** JPA has no identity to map. Inventing a key would change what the application means. */
     NO_PRIMARY_KEY(Severity.SKIPPED, "Skipped: entity has no primary key"),
 
+    /**
+     * The view object narrowed its query and the narrowing was not carried over, so the endpoint
+     * serves rows the original did not. This changes what an endpoint means rather than leaving
+     * something out of it, which is why it is not a warning.
+     */
+    QUERY_FILTER_NOT_CARRIED_OVER(Severity.SKIPPED, "Skipped: the query's WHERE clause"),
+
     /** The entity extends another. Its key, and most of its columns, are on the parent. */
     ENTITY_EXTENDS_ANOTHER(Severity.SKIPPED, "Skipped: entity extends another entity"),
 
@@ -150,6 +157,20 @@ public enum DiagnosticCode {
      * destroy the finishing work the generator itself asked a person to do.
      */
     FILE_EDITED_NOT_OVERWRITTEN(Severity.SKIPPED, "Skipped: file was edited since it was generated"),
+
+    /**
+     * Two view objects in one application module publish an operation with the same name and the
+     * same parameter types. The generated service is a single class and cannot declare it twice,
+     * so only the first is written.
+     */
+    OPERATION_NAME_ALREADY_USED(Severity.SKIPPED, "Skipped: operation name already used"),
+
+    /**
+     * The application module behind this URL generated no method for the view instance it reads,
+     * so there is nothing for a controller to call. A controller written anyway would name a
+     * method the run decided not to generate.
+     */
+    ENDPOINT_NOT_SERVED(Severity.SKIPPED, "Skipped: no service method for this endpoint"),
 
     // --- Failed ----------------------------------------------------------------------
 
