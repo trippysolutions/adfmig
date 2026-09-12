@@ -116,6 +116,15 @@ adfmig apps ~/adf
 one sample application publishes REST. another is a larger, more realistic sample — seventeen entities, nineteen
 view links — and is the realistic one.
 
+## Documentation
+
+- [Analysing an estate](docs/analysing-an-estate.md) — how to find out how big the migration is,
+  in the order the answers are useful
+- [How it works](docs/how-it-works.md) — what it reads, what it writes, what it guarantees and
+  what it cannot do
+- [Diagnostic reference](docs/diagnostics.md) — every code it can report and what each means
+- `adfmig glossary` — what each ADF term becomes
+
 ## What this repository is
 
 This is the assessment tool, and it is complete: no limits, no licence check, no account, nothing
