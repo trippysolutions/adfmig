@@ -2,8 +2,8 @@
 
 The most valuable thing you can send is **an ADF file that adfmig read wrong**.
 
-This tool was built against public sample applications, and nearly every improvement in it came
-from a real application doing something the samples never did — a document declaring `Cp1252` and
+This tool is exercised against several hundred applications, and nearly every improvement in
+it came from one of them doing something none of the others did — a document declaring `Cp1252` and
 not being in it, SQL hidden in a CDATA section, a connection definition behind a namespace, a
 `.bcs` Groovy file where XML was expected. If it reads your application badly, the file that
 confused it is worth more than a description of the symptom.
