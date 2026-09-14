@@ -26,8 +26,9 @@ class ProjectScannerTest {
 
     @Test
     void classifiesSecurityPolicyByRootElementNotFilename() throws IOException {
-        // In a large sample of real applications, `jazn-data` is the root of 96 files but only 8 are named
-        // jazn-data.xml. A filename-driven scanner misses 92% of the security configuration.
+        // Across a large sample of real applications, `jazn-data` is the root element of 96
+        // files but only 8 of them are named jazn-data.xml. A scanner driven by filename
+        // misses 92% of the security configuration.
         write("META-INF/system-jazn-data.xml", """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <jazn-data><jazn-realm/></jazn-data>
@@ -121,8 +122,8 @@ class ProjectScannerTest {
     @Test
     void recoversDocumentsDeclaringJavaCharsetNamesRatherThanIanaNames() throws IOException {
         // JDeveloper wrote encoding="Cp1252" / "MacRoman" / "Cp1256" (Arabic locales). Conformant
-        // XML parsers reject those names; the JDK resolves them as charset aliases. 52 files in
-        // a large sample of real applications are unreadable without this fallback.
+        // XML parsers reject those names; the JDK resolves them as charset aliases. Dozens of
+        // files in a large sample of real applications are unreadable without this fallback.
         Path file = root.resolve("META-INF/jps-config.xml");
         Files.createDirectories(file.getParent());
         Files.write(file, """

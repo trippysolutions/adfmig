@@ -150,8 +150,8 @@ public final class AnalyzeCommand implements Callable<Integer> {
     /**
      * Refuses to analyse a path holding more than one application.
      *
-     * <p>Repositories and shared drives commonly hold many applications side by side — the public
-     * {@code a large sample of real applications} repository holds 198. Merging them produces a model where
+     * <p>Repositories and shared drives commonly hold many applications side by side, in the
+     * hundreds. Merging them produces a model where
      * components from unrelated applications collide on the same fully qualified name and
      * references resolve across application boundaries, so every number reported is wrong. Saying
      * so is far more useful than quietly reporting nonsense.

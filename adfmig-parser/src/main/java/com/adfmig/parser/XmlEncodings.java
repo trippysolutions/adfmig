@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  *
  * <p>{@code encoding="Cp1252"}, {@code "MacRoman"} and — in Arabic locales — {@code "Cp1256"} are
  * all rejected outright by conformant XML parsers, but the JDK resolves them as charset aliases.
- * 52 files in a large sample of real applications are unreadable without this.
+ * Dozens of files across the applications this was tested against are unreadable without it.
  *
  * <p>The recovery is: decode the bytes with the charset the document asked for, remove the
  * declaration the parser objected to, and parse the resulting text.
