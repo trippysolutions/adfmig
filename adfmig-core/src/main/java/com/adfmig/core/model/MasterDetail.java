@@ -22,7 +22,7 @@ public record MasterDetail(
          * <p>ADF wires a master-detail relationship between two view instances, not between two
          * REST resources. Requiring the parent to be a published resource left every one of them
          * unreachable in an application that publishes no REST — which is most of them, and all
-         * 359 relationships in the corpus this was measured against.
+         * 359 relationships across the applications this was measured against.
          */
         Endpoint masterEndpoint,
         /** The parent's URL, wherever it came from. */
