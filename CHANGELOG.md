@@ -7,6 +7,21 @@ added, the third when something is fixed.
 Nothing in adfmig checks for updates or contacts anything, so new versions do not arrive on their
 own. To hear about them: **Watch → Custom → Releases** on this repository.
 
+## 0.1.3
+
+**Nothing in the free tool changed.** The jar behaves exactly as 0.1.2 did; the version moves
+because the build is versioned as a whole. If you are using `adfmig` to assess an estate, there is
+no reason to upgrade.
+
+adfmig Pro gained a backlog export. The migration checklist it writes beside a generated project
+is addressed to the developer who will do the work — every finding, in place, with the file to
+open. That is the wrong shape for whoever has to decide who does it and how long it takes: one
+real application produces 180 rows, and nobody plans against 180 rows. `--backlog jira|gitlab|trello`
+now also writes a CSV those tools import, where one ticket is one finding in one file rather than
+one occurrence, and tickets are grouped by the kind of work rather than by the code that found it.
+On that application it turns 180 findings into 77 tickets. It writes a file rather than calling an
+API, so it needs no token and creates nothing twice.
+
 ## 0.1.2
 
 The console says the answer first. `adfmig apps` printed several hundred rows before the summary

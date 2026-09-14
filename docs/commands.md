@@ -181,7 +181,8 @@ Exit codes: `0` success, `2` a usage or input error.
 
 ## Not in this tool
 
-Generating the Spring Boot project, comparing a generated schema against a real database, and
-calling every endpoint of a running replacement are **adfmig Pro** —
+Generating the Spring Boot project, comparing a generated schema against a real database,
+calling every endpoint of a running replacement, and exporting what is left to do as a backlog a
+planning tool can import are **adfmig Pro** —
 [trippysolutions.com](https://trippysolutions.com). Its code is not in this repository, so there
 is no check here to remove and nothing here to unlock.
