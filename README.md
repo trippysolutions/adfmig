@@ -20,8 +20,8 @@ network call of any kind. The same input produces the same output every run.
 
 **It migrates the backend, not the front end.** ADF Faces is a server-side component framework
 with no equivalent in Spring Boot, so the screens are a separate project whatever tool you use.
-Most ADF applications are mostly screens — in the corpus this is tested against, three quarters of
-them — so read that sentence before planning around anything below it. What you get is the data
+Most ADF applications are mostly screens — across the applications this has been tested against,
+roughly three quarters of them — so read that sentence before planning around anything below it. What you get is the data
 layer and an API; what you still need is a front end to call it.
 
 ```
@@ -135,15 +135,18 @@ adfmig report ~/your-adf/SomeApplication
 
 Nothing is uploaded, and nothing is written outside the directory you name.
 
-Before it goes near work that matters it is exercised against a corpus of several hundred real
-ADF applications: each one read, converted, compiled and started against an Oracle database, with
-the result checked against the rows that database holds. Composite keys, entity inheritance,
-expert-mode SQL, polymorphic view rows and Oracle's older outer-join syntax are all in that
-corpus deliberately, because those are the cases that break a migration.
+Before any release it is exercised against several hundred real ADF applications: each one read,
+converted, compiled and started against an Oracle database, with the result checked against the
+rows that database holds. Composite keys, entity inheritance, expert-mode SQL, polymorphic view
+rows and Oracle's older outer-join syntax are all deliberately among them, because those are the
+cases that break a migration.
 
-Every application in that corpus with a business model generates a project that compiles, and
-those whose tables the test database can serve are started with every mapping validated against
-the schema before anything is claimed about them.
+Every one of those applications with a business model generates a project that compiles, and
+those whose tables can be served are started with every mapping validated against the schema
+before anything is claimed about them.
+
+If it reads yours wrongly, that is worth more to this tool than any of the above —
+[tell me](https://github.com/trippysolutions/adfmig/issues/new/choose).
 
 ## What this repository is
 
@@ -167,6 +170,9 @@ original. It also answers the two questions a generated project raises next:
   match, but neither touches a query. Pro calls every endpoint of the running replacement and
   reports what served, what was correctly denied, and what failed.
 
+It also exports everything the generator could not finish as a backlog your team imports into
+Jira, GitLab or Trello — grouped by the kind of work rather than by the order it was found.
+
 If the assessment says the migration is worth doing, [trippysolutions.com](https://trippysolutions.com).
 
 ## Layout
@@ -183,3 +189,6 @@ adfmig-cli      the commands
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go privately, per [SECURITY.md](SECURITY.md).
 
 MIT licensed. See [LICENSE](LICENSE).
+
+Oracle, ADF, JDeveloper and WebLogic are trademarks of Oracle Corporation. This project is not
+affiliated with, endorsed by, or sponsored by Oracle.
