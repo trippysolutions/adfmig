@@ -3,7 +3,6 @@ package com.adfmig.cli;
 import com.adfmig.core.analysis.ApplicationAssessment;
 import com.adfmig.core.analysis.Assessor;
 import com.adfmig.core.analysis.EffortModel;
-import com.adfmig.core.analysis.GenerationReadiness;
 import com.adfmig.core.analysis.MigrationClass;
 import com.adfmig.core.model.AdfApplication;
 import com.adfmig.parser.AdfApplicationParser;
@@ -23,7 +22,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -102,69 +100,55 @@ public final class ReportCommand implements Callable<Integer> {
         return 0;
     }
 
+    /**
+     * The console half of a report: the verdict first, then the arithmetic behind it.
+     *
+     * <p>Someone running this is deciding whether to start. That decision is made on whether the
+     * application can be migrated at all, so that goes at the top, in words, before any number.
+     */
     private void summarise(PrintStream out, ApplicationAssessment a, Path file) {
         out.println();
         out.println("=".repeat(88));
-        out.println(a.name());
+        out.println("  " + a.name());
         out.println("=".repeat(88));
-        if (!a.hasBusinessModel()) {
-            // Naming it beats printing 0.0 person-days, which reads like a broken estimate rather
-            // than a finding. There is nothing here to migrate, and that is worth saying.
-            out.printf("  %-30s %s%n", "Backend migration",
-                    "nothing to migrate — no entities, view objects or application modules");
-        } else {
-            out.printf("  %-30s %s%n", "Backend migration",
-                    "%.1f person-days".formatted(a.backendDays()));
+
+        Verdict.of(a.application()).print(out);
+
+        if (a.hasBusinessModel()) {
+            out.println();
+            out.println("  EFFORT");
+            out.println();
+            Table effort = a.pageDefinitions() > 0
+                    ? Table.of("WORK", "PERSON-DAYS", "NOTE").right(1)
+                    : Table.of("WORK", "PERSON-DAYS").right(1);
+            if (a.pageDefinitions() > 0) {
+                effort.row("Backend migration", "%.1f".formatted(a.backendDays()), "");
+                effort.row("Front end rebuild", "%.0f".formatted(a.frontEndRebuildDays()),
+                        "a separate project — " + a.pageDefinitions() + " page definitions");
+            } else {
+                effort.row("Backend migration", "%.1f".formatted(a.backendDays()));
+            }
+            effort.print(out, "    ");
+
+            out.println();
+            out.println("  COMPONENTS");
+            out.println();
+            Table components = Table.of("COUNT", "CLASS", "WHAT THAT MEANS").right(0);
+            a.countsByClass().forEach((migrationClass, count) -> components.row(
+                    count, migrationClass.name().toLowerCase(Locale.ROOT), migrationClass.description()));
+            components.print(out, "    ");
+
+            int generated = a.countsByClass().getOrDefault(MigrationClass.AUTO, 0)
+                    + a.countsByClass().getOrDefault(MigrationClass.ASSISTED, 0);
+            int total = a.artifacts().size();
+            if (total > 0) {
+                out.printf("%n    %d%% of components are generated, in whole or as a starting point.%n",
+                        Math.round(generated * 100.0 / total));
+            }
         }
-        if (a.pageDefinitions() > 0) {
-            out.printf("  %-30s %s%n", "Front end rebuild (separate)",
-                    "%.0f person-days (%d page definitions)"
-                            .formatted(a.frontEndRebuildDays(), a.pageDefinitions()));
-        }
+
         out.println();
-        a.countsByClass().forEach((migrationClass, count) ->
-                out.printf("      %-14s %4d component(s)   %s%n",
-                        migrationClass.name().toLowerCase(Locale.ROOT), count, migrationClass.description()));
-
-        int generated = a.countsByClass().getOrDefault(MigrationClass.AUTO, 0)
-                + a.countsByClass().getOrDefault(MigrationClass.ASSISTED, 0);
-        int total = a.artifacts().size();
-        if (total > 0) {
-            out.printf("%n      %d%% of components generated, in whole or as a starting point.%n",
-                    Math.round(generated * 100.0 / total));
-        }
-        readiness(out, a);
-        out.printf("%n  Report: %s%n", file.toAbsolutePath());
-    }
-
-    /**
-     * Reports whether the parsed model holds enough to emit working code, which is a stricter
-     * question than how complex the migration is.
-     */
-    private void readiness(PrintStream out, ApplicationAssessment a) {
-        List<GenerationReadiness> checks = GenerationReadiness.of(a.application());
-        if (checks.isEmpty()) return;
-
-        long ready = checks.stream().filter(GenerationReadiness::isReady).count();
-        out.printf("%n      GENERATION READY   %d/%d  (%d%%)%n",
-                ready, checks.size(), Math.round(ready * 100.0 / checks.size()));
-
-        Map<String, Long> blockers = checks.stream()
-                .filter(c -> !c.isReady())
-                .flatMap(c -> c.blockers().stream())
-                .collect(java.util.stream.Collectors.groupingBy(
-                        ReportCommand::normaliseBlocker,
-                        java.util.LinkedHashMap::new,
-                        java.util.stream.Collectors.counting()));
-        blockers.entrySet().stream()
-                .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(6)
-                .forEach(e -> out.printf("        %-46s %4d%n", e.getKey(), e.getValue()));
-    }
-
-    /** Groups blockers that differ only by a count or a name, so the tally is readable. */
-    private static String normaliseBlocker(String blocker) {
-        return blocker.replaceAll("^\\d+ ", "N ").replaceAll("'[^']*'", "'..'");
+        out.printf("  Report: %s%n", Terminal.cyan(file.toAbsolutePath().toString()));
     }
 
     private List<Path> expand(List<Path> paths) throws Exception {

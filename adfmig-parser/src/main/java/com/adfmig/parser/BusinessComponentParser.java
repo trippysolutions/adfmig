@@ -51,7 +51,9 @@ final class BusinessComponentParser {
                     Xml.boolAttr(a, "IsUnique"),
                     Xml.boolAttr(a, "PrimaryKey"),
                     Xml.boolAttr(a, "RetrievedOnUpdate"),
-                    !Xml.children(a, "TransientExpression").isEmpty()));
+                    !Xml.children(a, "TransientExpression").isEmpty(),
+                    Xml.boolAttr(a, "DiscrColumn"),
+                    Xml.attr(a, "DefaultValue")));
         }
         return out;
     }

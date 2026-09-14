@@ -18,6 +18,12 @@ is never reached, and where database credentials sit in source.
 Everything runs on your machine. There is no service, nothing is uploaded, and the tool makes no
 network call of any kind. The same input produces the same output every run.
 
+**It migrates the backend, not the front end.** ADF Faces is a server-side component framework
+with no equivalent in Spring Boot, so the screens are a separate project whatever tool you use.
+Most ADF applications are mostly screens — in the corpus this is tested against, three quarters of
+them — so read that sentence before planning around anything below it. What you get is the data
+layer and an API; what you still need is a front end to call it.
+
 ```
 adfmig apps ~/adf                 what is in the estate, and in what order it can be migrated
 adfmig report ~/adf/Payments      the assessment, as a self-contained HTML file
@@ -67,8 +73,19 @@ adfmig glossary           What each ADF concept becomes in Spring, and why.
 adfmig start              The walkthrough, explicitly.
 ```
 
+Every command, every option and an example of each: [docs/commands.md](docs/commands.md).
+
 Long steps show progress at a terminal and print plain lines when output is redirected, so a report
 or a build log never receives escape codes. `NO_COLOR` and `ADFMIG_PLAIN` are respected.
+
+## Documentation
+
+| | |
+|---|---|
+| [Command reference](docs/commands.md) | every command, every option, an example of each |
+| [Analysing an estate](docs/analysing-an-estate.md) | the order the questions are worth asking, with real output |
+| [How it works](docs/how-it-works.md) | what it reads, what it guarantees, and what it cannot do |
+| [Diagnostic reference](docs/diagnostics.md) | every code the tool can report and what it means |
 
 ## The first thing it tells you
 
@@ -83,6 +100,9 @@ Which of two things you have. It decides the size of the job more than anything 
 
 An application that already publishes REST can be replaced behind its existing callers. One that is
 ADF Faces only cannot, because its API is its screens.
+
+Either way the screens themselves are rebuilt, not moved. The difference is whether you also have
+a contract to preserve while you do it.
 
 ## Updates
 
@@ -121,6 +141,10 @@ the result checked against the rows that database holds. Composite keys, entity 
 expert-mode SQL, polymorphic view rows and Oracle's older outer-join syntax are all in that
 corpus deliberately, because those are the cases that break a migration.
 
+Every application in that corpus with a business model generates a project that compiles, and
+those whose tables the test database can serve are started with every mapping validated against
+the schema before anything is claimed about them.
+
 ## What this repository is
 
 This is the assessment tool, and it is complete: no limits, no licence check, no account, nothing
@@ -130,6 +154,18 @@ Generating the Spring Boot project is a separate product, **adfmig Pro**, and it
 is not in this repository — so there is no check here to remove and nothing here to unlock. Rather
 than ship a restriction anyone could delete in a minute and call it a tier, the free tool simply
 does not contain the part that is paid for.
+
+Pro generates the project — JPA entities, repositories, services, controllers, the security
+configuration derived from the ADF grants, and the tests that compare the replacement against the
+original. It also answers the two questions a generated project raises next:
+
+- **Does the database agree?** Every mapping this tool reports is derived from ADF's own metadata,
+  so a mistake in that metadata agrees with itself the whole way down. Pro compares the schema the
+  mappings expect against a schema export from the real database and reports every difference.
+  Each one is a place the original application is already reading a column wrongly.
+- **Does every endpoint answer?** Compiling proves the code parses and starting proves the mappings
+  match, but neither touches a query. Pro calls every endpoint of the running replacement and
+  reports what served, what was correctly denied, and what failed.
 
 If the assessment says the migration is worth doing, [trippysolutions.com](https://trippysolutions.com).
 

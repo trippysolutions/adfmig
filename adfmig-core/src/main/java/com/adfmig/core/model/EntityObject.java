@@ -37,6 +37,30 @@ public record EntityObject(
         return extendsEntity != null && !extendsEntity.isBlank();
     }
 
+    /**
+     * The column that says which subtype a row is, where this family of entities has one.
+     *
+     * <p>ADF declares it on the base entity and every subtype overrides it with the value that
+     * identifies that subtype, which is the same arrangement JPA calls single-table inheritance.
+     */
+    public java.util.Optional<Attribute> discriminator() {
+        return attributes.stream()
+                .filter(Attribute::discriminator)
+                .filter(a -> a.columnName() != null && !a.columnName().isBlank())
+                .findFirst();
+    }
+
+    /**
+     * The value in the discriminator column that identifies a row as this entity, or null where
+     * this entity declares none — which is what the base of a family looks like.
+     */
+    public String discriminatorValue() {
+        return discriminator()
+                .map(Attribute::defaultValue)
+                .filter(value -> !value.isBlank())
+                .orElse(null);
+    }
+
     public String simpleName() {
         int i = fqn.lastIndexOf('.');
         return i < 0 ? fqn : fqn.substring(i + 1);
@@ -88,7 +112,17 @@ public record EntityObject(
             boolean unique,
             boolean primaryKey,
             boolean retrievedOnUpdate,
-            boolean hasExpression) {}
+            boolean hasExpression,
+            /**
+             * True when ADF marked this the column that says which subtype a row is. ADF calls it
+             * DiscrColumn, and it means exactly what JPA's discriminator column means.
+             */
+            boolean discriminator,
+            /**
+             * The value ADF defaults this attribute to. On a subtype's discriminator attribute
+             * this is the value that identifies the subtype — 'M' for a Man row.
+             */
+            String defaultValue) {}
 
     /**
      * Navigation to a related entity through an association.

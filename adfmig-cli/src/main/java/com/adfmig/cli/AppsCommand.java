@@ -36,6 +36,21 @@ public final class AppsCommand implements Callable<Integer> {
     @Option(names = {"-o", "--json"}, description = "Write the estate survey to this file.")
     private Path jsonOut;
 
+    @Option(names = {"-l", "--list"},
+            description = "List every application. Without it only the summary is printed, "
+                    + "because an estate of any size is hundreds of rows nobody reads.")
+    private boolean list;
+
+    @Option(names = {"-f", "--filter"}, paramLabel = "TEXT",
+            description = "List only applications whose path or name contains this, case "
+                    + "insensitively. Implies --list.")
+    private String filter;
+
+    @Option(names = "--profile", paramLabel = "KIND",
+            description = "List only applications of one kind: rest, ui, model or empty. "
+                    + "Implies --list.")
+    private String profileFilter;
+
 
     @Override
     public Integer call() throws Exception {
@@ -82,23 +97,39 @@ public final class AppsCommand implements Callable<Integer> {
         out.printf("%d application(s) under %s%n", estate.applications().size(), estate.root());
         out.println("=".repeat(104));
 
-        out.println();
-        // Identify applications by path, not name: several applications in one estate routinely
-        // share a name, and the path is what the user needs to pass to `adfmig analyze`.
-        out.printf("  %-46s %5s %5s %5s %5s  %s%n", "APPLICATION", "EO", "VO", "AM", "REST", "PROFILE");
-        out.printf("  %s%n", "-".repeat(102));
-        for (DiscoveredApplication app : estate.applications()) {
-            out.printf("  %-46s %5d %5d %5d %5d  %s%n",
-                    truncateLeft(app.path(), 46),
-                    app.entityObjects(), app.viewObjects(), app.applicationModules(), app.restResources(),
-                    app.profile().description());
+        List<DiscoveredApplication> shown = matching(estate);
+        boolean listing = list || filter != null || profileFilter != null;
+
+        if (listing) {
+            out.println();
+            if (shown.isEmpty()) {
+                out.printf("  Nothing matched%s%s.%n",
+                        filter == null ? "" : " \"" + filter + "\"",
+                        profileFilter == null ? "" : " in profile " + profileFilter);
+            } else {
+                // Identify applications by path, not name: several applications in one estate
+                // routinely share a name, and the path is what the user passes to the next
+                // command.
+                Table table = Table.of("APPLICATION", "EO", "VO", "AM", "REST", "PROFILE")
+                        .width(0, 46).tail(0)
+                        .right(1, 2, 3, 4);
+                shown.forEach(app -> table.row(app.path(),
+                        app.entityObjects(), app.viewObjects(), app.applicationModules(),
+                        app.restResources(), coloured(app.profile())));
+                table.print(out, "  ");
+                if (shown.size() < estate.applications().size()) {
+                    out.printf("%n  %d of %d shown.%n", shown.size(), estate.applications().size());
+                }
+            }
         }
 
         out.println();
         out.println("  BY PROFILE");
+        out.println();
         Map<DiscoveredApplication.Profile, List<DiscoveredApplication>> byProfile = estate.byProfile();
-        byProfile.forEach((profile, apps) ->
-                out.printf("      %-52s %4d%n", profile.description(), apps.size()));
+        Table summary = Table.of("APPLICATIONS", "HOW IT IS CONSUMED").right(0);
+        byProfile.forEach((profile, apps) -> summary.row(apps.size(), coloured(profile)));
+        summary.print(out, "      ");
 
         List<DiscoveredApplication> rest = byProfile.getOrDefault(
                 DiscoveredApplication.Profile.REST_CONTRACT, List.of());
@@ -108,6 +139,40 @@ public final class AppsCommand implements Callable<Integer> {
             out.println("      operations and security grants are declared, so the migration preserves");
             out.println("      the contract and can be verified response by response.");
         }
+    }
+
+    /**
+     * The profile, coloured by what it means for the migration.
+     *
+     * <p>Green for the applications that already publish REST: their contract is declared, so the
+     * migration can be checked response by response, and they are where to start. Amber for a
+     * front end that has to be rewritten rather than moved. Dim for the ones that are not a piece
+     * of work on their own — a shared library, or a project with no business model in it.
+     *
+     * <p>Colour carries the meaning that the column already has, so nothing is lost reading this
+     * without it. That matters for anyone piping the output, and for anyone who cannot see the
+     * difference between green and amber.
+     */
+    private static String coloured(DiscoveredApplication.Profile profile) {
+        return switch (profile) {
+            case REST_CONTRACT -> Terminal.green(profile.description());
+            case ADF_FACES_UI -> Terminal.yellow(profile.description());
+            case MODEL_ONLY, NO_BUSINESS_MODEL -> Terminal.dim(profile.description());
+        };
+    }
+
+    /** The applications a listing should show, which is all of them unless asked otherwise. */
+    private List<DiscoveredApplication> matching(AdfEstate estate) {
+        return estate.applications().stream()
+                .filter(app -> filter == null
+                        || app.path().toLowerCase(java.util.Locale.ROOT)
+                                .contains(filter.toLowerCase(java.util.Locale.ROOT))
+                        || app.name().toLowerCase(java.util.Locale.ROOT)
+                                .contains(filter.toLowerCase(java.util.Locale.ROOT)))
+                .filter(app -> profileFilter == null
+                        || app.profile().name().toLowerCase(java.util.Locale.ROOT)
+                                .contains(profileFilter.toLowerCase(java.util.Locale.ROOT)))
+                .toList();
     }
 
     private void dependencies(PrintStream out, AdfEstate estate) {
@@ -163,8 +228,15 @@ public final class AppsCommand implements Callable<Integer> {
         }
         out.println();
         conflicts.forEach((identity, apps) -> {
-            out.printf("        %s%n", identity);
-            apps.forEach(a -> out.printf("            %s%n", a));
+            out.printf("        %s   (%d applications)%n", identity, apps.size());
+            // A few, then a count. Twelve datasources listing fifty applications each is two
+            // hundred lines nobody reads, and it buries the section that follows it. The names
+            // are in --json for anything that needs them all.
+            apps.stream().limit(4).forEach(a -> out.printf("            %s%n", a));
+            if (apps.size() > 4) {
+                out.printf("            %s%n",
+                        Terminal.dim("... and " + (apps.size() - 4) + " more"));
+            }
         });
     }
 
@@ -185,8 +257,10 @@ public final class AppsCommand implements Callable<Integer> {
                 .collect(java.util.stream.Collectors.groupingBy(
                         CredentialFinding::kind, java.util.LinkedHashMap::new,
                         java.util.stream.Collectors.counting()));
-        byKind.forEach((kind, count) ->
-                out.printf("      %-52s %4d file(s)%n", kind.description(), count));
+        out.println();
+        Table kinds = Table.of("FILES", "WHAT WAS FOUND").right(0);
+        byKind.forEach((kind, count) -> kinds.row(count, kind.description()));
+        kinds.print(out, "      ");
 
         out.println();
         out.println("      Oracle's {903} and {904} prefixes are obfuscation, not encryption: they");

@@ -81,12 +81,16 @@ public final class ScanCommand implements Callable<Integer> {
         printRelevance(out, r);
 
         if (!r.unparseable().isEmpty()) {
-            out.printf("%n  Unreadable XML (%d) — each one is an unmigratable artifact:%n",
-                    r.unparseable().size());
-            r.unparseable().entrySet().stream().limit(10).forEach(e ->
-                    out.printf("    %-52s %s%n", truncate(e.getKey(), 52), e.getValue()));
+            out.printf("%n  %s %d unreadable XML file(s) — each one is an artifact that cannot be%n",
+                    Terminal.red("!"), r.unparseable().size());
+            out.println("  migrated, because nothing can be read out of it.");
+            out.println();
+            Table table = Table.of("FILE", "WHY").width(0, 52).tail(0).width(1, 40);
+            r.unparseable().entrySet().stream().limit(10)
+                    .forEach(e -> table.row(e.getKey(), e.getValue()));
+            table.print(out, "    ");
             if (r.unparseable().size() > 10) {
-                out.printf("    ... and %d more%n", r.unparseable().size() - 10);
+                out.println("    " + Terminal.dim("... and " + (r.unparseable().size() - 10) + " more"));
             }
         }
     }
@@ -99,14 +103,16 @@ public final class ScanCommand implements Callable<Integer> {
         out.println();
         out.println("  MIGRATION PROFILE");
         if (r.hasExistingRestContract()) {
-            out.printf("    + Already exposes REST (%d resources, %d registries).%n",
+            out.printf("    %s Already exposes REST (%d resources, %d registries).%n",
+                    Terminal.green("+"),
                     r.count(AdfArtifactType.REST_RESOURCE),
                     r.count(AdfArtifactType.REST_RESOURCE_REGISTRY));
             out.println("      URL structure, operation signatures and security grants are declared,");
             out.println("      so the migration is contract-preserving and response-by-response verifiable.");
         }
         if (r.hasAdfFacesConsumers()) {
-            out.printf("    ! Bound to an ADF Faces UI (%d page definitions, %d pages, %d fragments).%n",
+            out.printf("    %s Bound to an ADF Faces UI (%d page definitions, %d pages, %d fragments).%n",
+                    Terminal.yellow("!"),
                     r.count(AdfArtifactType.PAGE_DEFINITION),
                     r.count(AdfArtifactType.JSF_PAGE),
                     r.count(AdfArtifactType.JSF_FRAGMENT));
@@ -114,7 +120,8 @@ public final class ScanCommand implements Callable<Integer> {
             out.println("      model alone strands the UI: the front end needs rewriting.");
         }
         if (!r.hasExistingRestContract() && !r.hasAdfFacesConsumers()) {
-            out.println("    ? No REST contract and no ADF Faces consumers found.");
+            out.printf("    %s No REST contract and no ADF Faces consumers found.%n",
+                    Terminal.dim("?"));
             out.println("      Check for SOAP/SDO service interfaces or an external consumer.");
         }
     }
@@ -129,21 +136,21 @@ public final class ScanCommand implements Callable<Integer> {
 
         out.println();
         out.println("  ARTIFACTS");
-        byLayer.forEach((layer, entries) -> {
-            out.printf("    %s%n", layer);
-            entries.forEach(e ->
-                    out.printf("      %-46s %6d%n", e.getKey().label(), e.getValue()));
-        });
+        out.println();
+        // One table rather than one per layer: a heading and three rows, repeated eight times,
+        // reads as eight small tables and not as an inventory of one application.
+        Table table = Table.of("COUNT", "ARTIFACT", "LAYER").right(0);
+        byLayer.forEach((layer, entries) -> entries.forEach(entry ->
+                table.row(entry.getValue(), entry.getKey().label(), layer)));
+        table.print(out, "    ");
     }
 
     private void printRelevance(PrintStream out, ScanResult r) {
         out.println();
         out.println("  BY MIGRATION RELEVANCE");
-        r.countsByRelevance().forEach((relevance, count) ->
-                out.printf("      %-46s %6d%n", relevance, count));
-    }
-
-    private static String truncate(String s, int max) {
-        return s.length() <= max ? s : "..." + s.substring(s.length() - (max - 3));
+        out.println();
+        Table table = Table.of("COUNT", "RELEVANCE").right(0);
+        r.countsByRelevance().forEach((relevance, count) -> table.row(count, relevance));
+        table.print(out, "    ");
     }
 }

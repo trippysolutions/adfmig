@@ -18,7 +18,10 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -95,13 +98,123 @@ public final class StartCommand implements Callable<Integer> {
         out.println("  " + Terminal.dim("A directory holding one or more applications. Blank to stop."));
 
         while (true) {
-            String answer = ask("  path> ");
+            String answer = ask("  path> ").strip();
             if (answer.isBlank()) return null;
 
-            Path path = Path.of(answer.replaceFirst("^~", System.getProperty("user.home")));
+            Path path = resolve(answer);
             if (Files.isDirectory(path)) return path;
+
             out.println("  " + Terminal.red("Not a directory: ") + path);
+            adviceFor(answer, path).forEach(line -> out.println("  " + Terminal.dim(line)));
         }
+    }
+
+    /** Expands a leading {@code ~} the way a shell would, since nothing expands it for us here. */
+    static Path resolve(String typed) {
+        String expanded = typed.startsWith("~")
+                ? System.getProperty("user.home") + typed.substring(1)
+                : typed;
+        return Path.of(expanded).normalize();
+    }
+
+    /**
+     * What to say when the path does not exist.
+     *
+     * <p>"Not a directory" is true and useless. Two mistakes account for nearly every failure at
+     * this prompt: a typo in one segment, and an absolute path where the person meant one under
+     * their home directory. Both are visible from here, so both get answered by name rather than
+     * left for the user to find. The first prompt of the tool is the worst possible place to
+     * strand someone.
+     */
+    static List<String> adviceFor(String typed, Path path) {
+        List<String> advice = new ArrayList<>();
+
+        // The same text read from the home directory instead of the disk root. Checked first
+        // because it is the mistake that leaves the typed path looking entirely reasonable.
+        Path underHome = typed.startsWith("~")
+                ? null
+                : Path.of(System.getProperty("user.home"), typed).normalize();
+        if (underHome != null && Files.isDirectory(underHome)) {
+            advice.add("Did you mean  " + underHome + "  ?");
+            return advice;
+        }
+
+        Path home = Path.of(System.getProperty("user.home"));
+        for (Path candidate : underHome == null ? List.of(path) : List.of(path, underHome)) {
+            Path existing = deepestExisting(candidate);
+            if (existing == null || existing.equals(candidate)) continue;
+            if (candidate.getNameCount() <= existing.getNameCount()) continue;
+            // Joining an absolute path onto the home directory only means something if it starts
+            // to exist there. Without this, any unrecognised path produces a suggestion built
+            // from whatever happens to sit in the home directory, which is worse than silence.
+            if (candidate == underHome && existing.getNameCount() <= home.getNameCount()) continue;
+            String missing = candidate.getName(existing.getNameCount()).toString();
+            for (String near : nearest(existing, missing)) {
+                String suggestion = "Did you mean  " + existing.resolve(near) + "  ?";
+                if (!advice.contains(suggestion)) advice.add(suggestion);
+            }
+        }
+
+        // Only worth explaining when the path really does begin somewhere that does not exist.
+        // A deep path under a directory that is plainly there went wrong further along, and the
+        // person does not need a lesson about the disk root to hear it.
+        if (advice.isEmpty() && typed.startsWith("/") && path.getNameCount() > 0
+                && !Files.exists(path.getRoot().resolve(path.getName(0)))) {
+            advice.add("A path starting with / is read from the root of the disk.");
+            advice.add("For a directory inside your home folder, start with  ~/");
+        }
+        return advice;
+    }
+
+    /** The deepest part of the path that does exist, which is where a typo starts. */
+    private static Path deepestExisting(Path path) {
+        for (Path at = path; at != null; at = at.getParent()) {
+            if (Files.isDirectory(at)) return at;
+        }
+        return null;
+    }
+
+    /** Directory names in {@code directory} close enough to {@code missing} to be worth offering. */
+    private static List<String> nearest(Path directory, String missing) {
+        if (missing.isBlank()) return List.of();
+        try (var entries = Files.list(directory)) {
+            return entries.filter(Files::isDirectory)
+                    .map(entry -> entry.getFileName().toString())
+                    .filter(name -> close(name, missing))
+                    .sorted(Comparator.comparingInt(name -> distance(name, missing)))
+                    .limit(3)
+                    .toList();
+        } catch (Exception unreadable) {
+            // A directory we cannot list simply produces no suggestion; the error above already
+            // said what went wrong.
+            return List.of();
+        }
+    }
+
+    private static boolean close(String name, String missing) {
+        String a = name.toLowerCase(Locale.ROOT);
+        String b = missing.toLowerCase(Locale.ROOT);
+        return a.startsWith(b) || b.startsWith(a) || distance(name, missing) <= 2;
+    }
+
+    /** Levenshtein distance, case-insensitively — enough to catch a dropped or doubled letter. */
+    static int distance(String left, String right) {
+        String a = left.toLowerCase(Locale.ROOT);
+        String b = right.toLowerCase(Locale.ROOT);
+        int[] previous = new int[b.length() + 1];
+        int[] current = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) previous[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            current[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int substitute = previous[j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1);
+                current[j] = Math.min(substitute, Math.min(previous[j] + 1, current[j - 1] + 1));
+            }
+            int[] swap = previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[b.length()];
     }
 
     private AdfEstate survey(PrintStream out, Path root) throws Exception {
@@ -113,23 +226,40 @@ public final class StartCommand implements Callable<Integer> {
         }
     }
 
+    /**
+     * What the estate contains, as counts rather than rows.
+     *
+     * <p>Listing every application here was printing hundreds of lines and then asking the person
+     * to pick a number from a list that had already scrolled away. The counts are what this step
+     * is for; choosing happens in the next one, against a list small enough to still be on screen.
+     */
     private void showEstate(PrintStream out, AdfEstate estate) {
         out.println();
-        out.println("  " + Terminal.bold("2. What is there"));
+        out.printf("  %s %s%n", Terminal.bold("2. What is there"),
+                Terminal.dim("— " + estate.applications().size() + " application(s)"));
         out.println();
-        List<DiscoveredApplication> applications = estate.applications();
-        for (int i = 0; i < applications.size(); i++) {
-            DiscoveredApplication application = applications.get(i);
-            out.printf("    %2d. %-44s %s%n", i + 1,
-                    truncate(application.path(), 44), colour(application.profile()));
-        }
+        Table counts = Table.of("APPLICATIONS", "HOW IT IS CONSUMED").right(0);
+        estate.byProfile().forEach((profile, applications) ->
+                counts.row(applications.size(), colour(profile)));
+        counts.print(out, "    ");
 
         var conflicts = estate.schemaConflicts();
         if (!conflicts.isEmpty()) {
             out.println();
-            out.println("  " + Terminal.yellow("Applications sharing a database schema:"));
-            conflicts.forEach((schema, apps) ->
-                    out.printf("    %s  <- %d applications%n", schema, apps.size()));
+            out.printf("  %s %d schema(s) are written by more than one application:%n",
+                    Terminal.yellow("!"), conflicts.size());
+            // A few, then a count. This sits immediately above the prompt, and a long list here
+            // pushes the question the person is meant to answer off the top of the screen.
+            out.println();
+            Table shared = Table.of("SCHEMA OR DATASOURCE", "APPLICATIONS").width(0, 46).right(1);
+            conflicts.entrySet().stream().limit(5).forEach(conflict ->
+                    shared.row(conflict.getKey(), conflict.getValue().size()));
+            shared.print(out, "      ");
+            if (conflicts.size() > 5) {
+                out.println("      " + Terminal.dim("... and " + (conflicts.size() - 5)
+                        + " more — see  adfmig apps  for all of them"));
+            }
+            out.println();
             out.println("  " + Terminal.dim("Migrate these together, or agree a locking strategy first."));
         }
         if (!estate.credentialFindings().isEmpty()) {
@@ -139,22 +269,113 @@ public final class StartCommand implements Callable<Integer> {
         }
     }
 
+    /** How many applications to put on screen at once, so the prompt stays visible under them. */
+    private static final int PAGE = 12;
+
+    /**
+     * Asks which application to assess, against a shortlist rather than the whole estate.
+     *
+     * <p>Numbers always index what is currently on screen, so a search replaces the list and
+     * renumbers it. Anything else would mean typing a number that refers to output the person
+     * cannot see.
+     */
     private DiscoveredApplication chooseApplication(PrintStream out, AdfEstate estate) {
-        List<DiscoveredApplication> applications = estate.applications();
+        List<DiscoveredApplication> all = estate.applications();
+
         out.println();
         out.println("  " + Terminal.bold("3. Which one shall we assess?"));
+        out.println("  " + Terminal.dim("A number to assess it, a name to search for, "
+                + "\"all\" to list every one."));
+        out.println("  " + Terminal.dim("Blank to stop."));
+
+        List<DiscoveredApplication> shown =
+                show(out, shortlist(all), PAGE, all.size(), "the ones worth migrating first");
 
         while (true) {
-            String answer = ask("  number> ");
+            String answer = ask("  number/name> ").strip();
             if (answer.isBlank()) return null;
-            try {
-                int index = Integer.parseInt(answer.trim());
-                if (index >= 1 && index <= applications.size()) return applications.get(index - 1);
-            } catch (NumberFormatException ignored) {
-                // Fall through to the same message; a typo and an out-of-range number need the
-                // same answer.
+
+            if (answer.equalsIgnoreCase("all")) {
+                shown = show(out, all, all.size(), all.size(), "every application found");
+                continue;
             }
-            out.println("  " + Terminal.red("Pick a number between 1 and " + applications.size()));
+
+            Integer index = number(answer);
+            if (index != null) {
+                if (index >= 1 && index <= shown.size()) return shown.get(index - 1);
+                out.println("  " + Terminal.red(
+                        "Pick a number between 1 and " + shown.size() + ", from the list above."));
+                continue;
+            }
+
+            List<DiscoveredApplication> matches = search(all, answer);
+            if (matches.isEmpty()) {
+                out.println("  " + Terminal.red("Nothing matched \"" + answer + "\""));
+                out.println("  " + Terminal.dim("Search matches any part of a name or path."));
+                continue;
+            }
+            shown = show(out, matches, PAGE, all.size(), "matching \"" + answer + "\"");
+        }
+    }
+
+    /**
+     * Prints a numbered list and returns exactly what it printed, so the numbers the person reads
+     * and the numbers this command accepts can never drift apart.
+     */
+    private List<DiscoveredApplication> show(PrintStream out, List<DiscoveredApplication> applications,
+                                             int limit, int total, String what) {
+        List<DiscoveredApplication> page = applications.stream().limit(limit).toList();
+
+        out.println();
+        Table table = Table.of("#", "APPLICATION", "EO", "VO", "REST", "KIND")
+                .width(1, 34).tail(1)
+                .right(0, 2, 3, 4);
+        for (int i = 0; i < page.size(); i++) {
+            DiscoveredApplication application = page.get(i);
+            table.row(i + 1, application.path(),
+                    application.entityObjects(), application.viewObjects(),
+                    application.restResources(),
+                    kind(application.profile()));
+        }
+        table.print(out, "     ");
+
+        out.println();
+        out.println("     " + Terminal.dim(page.size() < applications.size()
+                ? "Showing " + page.size() + " of " + applications.size() + " — " + what
+                        + ". Type part of a name to narrow it."
+                : page.size() + " of " + total + " — " + what + "."));
+        return page;
+    }
+
+    /**
+     * The applications worth offering first: those that already publish REST, then the ones with
+     * the most business components. Applications with no business model are left out entirely —
+     * there is nothing in them to assess.
+     */
+    static List<DiscoveredApplication> shortlist(List<DiscoveredApplication> all) {
+        List<DiscoveredApplication> worthwhile = all.stream()
+                .filter(a -> a.profile() != DiscoveredApplication.Profile.NO_BUSINESS_MODEL)
+                .sorted(Comparator
+                        .comparingInt((DiscoveredApplication a) -> a.profile().ordinal())
+                        .thenComparing(DiscoveredApplication::businessComponents,
+                                Comparator.reverseOrder()))
+                .toList();
+        return worthwhile.isEmpty() ? all : worthwhile;
+    }
+
+    static List<DiscoveredApplication> search(List<DiscoveredApplication> all, String text) {
+        String needle = text.toLowerCase(Locale.ROOT);
+        return all.stream()
+                .filter(a -> a.path().toLowerCase(Locale.ROOT).contains(needle)
+                        || a.name().toLowerCase(Locale.ROOT).contains(needle))
+                .toList();
+    }
+
+    private static Integer number(String answer) {
+        try {
+            return Integer.valueOf(answer);
+        } catch (NumberFormatException notANumber) {
+            return null;
         }
     }
 
@@ -170,19 +391,33 @@ public final class StartCommand implements Callable<Integer> {
 
     private void showAssessment(PrintStream out, ApplicationAssessment assessment) throws Exception {
         out.println();
-        out.println("  " + Terminal.bold("4. What it would take"));
+        out.println("  " + Terminal.bold("4. Can it be migrated?"));
+
+        Verdict.of(assessment.application()).print(out);
+
         out.println();
-        out.printf("    %-34s %s%n", "Backend migration",
-                Terminal.bold(String.format("%.0f person-days", assessment.backendDays())));
+        out.println("  " + Terminal.bold("5. What it would take"));
+        out.println();
+        // Only two columns when there is no front end to rebuild, rather than a NOTE column
+        // with nothing under it.
+        Table effort = assessment.pageDefinitions() > 0
+                ? Table.of("WORK", "PERSON-DAYS", "NOTE").right(1)
+                : Table.of("WORK", "PERSON-DAYS").right(1);
         if (assessment.pageDefinitions() > 0) {
-            out.printf("    %-34s %.0f person-days  %s%n", "Front end rebuild",
-                    assessment.frontEndRebuildDays(),
-                    Terminal.dim("(a separate project)"));
+            effort.row("Backend migration", "%.0f".formatted(assessment.backendDays()), "");
+            effort.row("Front end rebuild", "%.0f".formatted(assessment.frontEndRebuildDays()),
+                    "a separate project");
+        } else {
+            effort.row("Backend migration", "%.0f".formatted(assessment.backendDays()));
         }
+        effort.print(out, "    ");
+
         out.println();
-        assessment.countsByClass().forEach((migrationClass, count) ->
-                out.printf("    %-14s %4d  %s%n", migrationClass.name().toLowerCase(), count,
-                        Terminal.dim(migrationClass.description())));
+        Table components = Table.of("COUNT", "CLASS", "WHAT THAT MEANS").right(0);
+        assessment.countsByClass().forEach((migrationClass, count) -> components.row(
+                count, migrationClass.name().toLowerCase(java.util.Locale.ROOT),
+                migrationClass.description()));
+        components.print(out, "    ");
 
         out.println();
         out.println("  " + Terminal.dim("Effort weights are uncalibrated until measured against a"));
@@ -201,7 +436,7 @@ public final class StartCommand implements Callable<Integer> {
     private void offerToGenerate(PrintStream out, Path applicationRoot,
                                  ApplicationAssessment assessment) throws Exception {
         out.println();
-        out.println("  " + Terminal.bold("5. Generate the Spring Boot project?"));
+        out.println("  " + Terminal.bold("6. Generate the Spring Boot project?"));
 
         if (extension.isEmpty() || !extension.get().canGenerate()) {
             out.println("  " + Terminal.dim("This is the free assessment tool, which reports what a"));
@@ -259,6 +494,22 @@ public final class StartCommand implements Callable<Integer> {
     private String ask(String prompt) {
         String answer = console.readLine(prompt);
         return answer == null ? "" : answer;
+    }
+
+    /**
+     * The profile in a few words rather than a sentence.
+     *
+     * <p>The full description is a sentence, and a table carrying it is a hundred and twenty
+     * columns wide — so on a normal window every row wraps and the table stops being one. The
+     * sentence is already given once, above, in the counts.
+     */
+    private static String kind(DiscoveredApplication.Profile profile) {
+        return switch (profile) {
+            case REST_CONTRACT -> Terminal.green("REST contract");
+            case ADF_FACES_UI -> Terminal.yellow("ADF Faces UI");
+            case MODEL_ONLY -> Terminal.dim("shared library");
+            case NO_BUSINESS_MODEL -> Terminal.dim("no model");
+        };
     }
 
     private static String colour(DiscoveredApplication.Profile profile) {

@@ -18,10 +18,35 @@ adfmig apps ~/adf
 ```
 272 application(s) under /Users/you/adf
 
-APPLICATION                      EO    VO    AM  REST  PROFILE
-Payments                         41    58     3    12  REST service — has callers
-Reporting                        17    22     1     0  ADF Faces UI — front end needs rewriting
-SharedLibrary                     6     6     1     0  model only — likely a shared library
+  BY PROFILE
+
+      ┌──────────────┬──────────────────────────────────────────────┐
+      │ APPLICATIONS │ HOW IT IS CONSUMED                           │
+      ├──────────────┼──────────────────────────────────────────────┤
+      │            2 │ already REST — contract-preserving migration │
+      │          206 │ ADF Faces UI — front end needs rewriting     │
+      │           49 │ model only — likely a shared library         │
+      │           15 │ no business model                            │
+      └──────────────┴──────────────────────────────────────────────┘
+```
+
+That is the answer most of the time, so it is what you get. The applications themselves are a
+table behind `--list`, because an estate of any size is hundreds of rows nobody reads:
+
+```
+adfmig apps ~/adf --list
+adfmig apps ~/adf --filter payments        only the ones that match
+adfmig apps ~/adf --profile rest           only those already publishing REST
+```
+
+```
+┌─────────────────┬────┬────┬────┬──────┬──────────────────────────────────────────────┐
+│ APPLICATION     │ EO │ VO │ AM │ REST │ PROFILE                                      │
+├─────────────────┼────┼────┼────┼──────┼──────────────────────────────────────────────┤
+│ Payments        │ 41 │ 58 │  3 │   12 │ already REST — contract-preserving migration │
+│ Reporting       │ 17 │ 22 │  1 │    0 │ ADF Faces UI — front end needs rewriting     │
+│ SharedLibrary   │  6 │  6 │  1 │    0 │ model only — likely a shared library         │
+└─────────────────┴────┴────┴────┴──────┴──────────────────────────────────────────────┘
 ```
 
 **EO** is entity objects — roughly tables. **VO** is view objects — roughly queries. **AM** is
@@ -79,11 +104,17 @@ unreachable.
 
 ## Reading the estimate honestly
 
-The assessment says what the metadata supports and marks what it cannot see. Custom Java classes
-are reported by name and size, not by what they do — nothing here reads Java. Groovy expressions
-are counted and quoted, not interpreted. Where an estimate depends on something invisible, it
-says so rather than guessing, because an estimate that hides its assumptions is worse than no
-estimate.
+The assessment says what the metadata supports and marks what it cannot see. Hand-written Java is
+read and classified — a direct Spring equivalent, needs review, or must be rewritten — but never
+interpreted or converted, because an override that applies a criteria and returns a count is an
+afternoon and one that walks a row set issuing its own SQL is a week, and scoring both the same
+makes every estimate wrong. Groovy expressions are counted and quoted, not interpreted. Where an
+estimate depends on something invisible, it says so rather than guessing, because an estimate that
+hides its assumptions is worse than no estimate.
+
+On a real estate the hand-written half is usually the larger one. It is worth reading that number
+before quoting anything: the tool generates the part metadata describes, and a person writes the
+rest.
 
 ## What it never does
 

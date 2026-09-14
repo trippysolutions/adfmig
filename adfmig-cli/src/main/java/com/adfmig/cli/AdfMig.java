@@ -95,7 +95,81 @@ public final class AdfMig implements Runnable {
      * rather than reported as a malformed argument; nothing else about them is known here.
      */
     private static final java.util.Set<String> SOLD_SEPARATELY =
-            java.util.Set.of("generate", "license");
+            java.util.Set.of("generate", "schema", "verify", "license");
+
+    /**
+     * What each command is actually used for, shown under its own help.
+     *
+     * <p>An option list says what every flag is called and nothing about which of them anyone
+     * reaches for. These are the lines people copy.
+     */
+    private static final java.util.Map<String, String[]> EXAMPLES = java.util.Map.of(
+            "apps", new String[] {
+                    "Examples",
+                    "  adfmig apps ~/adf                     how many applications, and of what kind",
+                    "  adfmig apps ~/adf --list              every one of them, as a table",
+                    "  adfmig apps ~/adf --filter payments   only those matching a name or path",
+                    "  adfmig apps ~/adf --profile rest      only those already publishing REST",
+                    "  adfmig apps ~/adf --json estate.json  the whole survey, for another tool"},
+            "scan", new String[] {
+                    "Examples",
+                    "  adfmig scan ~/adf/Payments            what the application is made of",
+                    "  adfmig scan ~/adf/Payments --show-ignored   including what does not migrate"},
+            "analyze", new String[] {
+                    "Examples",
+                    "  adfmig analyze ~/adf/Payments         every endpoint, one row each",
+                    "  adfmig analyze ~/adf/Payments --detail     bind variables, criteria, grants",
+                    "  adfmig analyze ~/adf/Payments --sql   the query behind each endpoint",
+                    "  adfmig analyze ~/adf --all            every application under the path"},
+            "report", new String[] {
+                    "Examples",
+                    "  adfmig report ~/adf/Payments          assess one application",
+                    "  adfmig report ~/adf --all             assess an estate, with a total",
+                    "  adfmig report ~/adf/Payments -o out   write the HTML somewhere else",
+                    "",
+                    "The verdict is about whether the source says enough to generate working code,",
+                    "which is a different question from how much work the migration is."},
+            "schema", new String[] {
+                    "Examples",
+                    "  adfmig schema ~/adf/Payments --against prod-schema.sql",
+                    "  adfmig schema ~/adf/Payments --against prod-schema.sql --show-unused",
+                    "",
+                    "Nothing connects to a database. --against takes the database's own DDL — a",
+                    "schema export, or anything holding its CREATE TABLE statements — which is the",
+                    "one thing a customer can send before an account has been agreed.",
+                    "",
+                    "This is the only check that can find an error in the ADF metadata itself.",
+                    "Everything else is derived from that metadata, so a mistake in it agrees with",
+                    "itself all the way down."},
+            "start", new String[] {
+                    "Examples",
+                    "  adfmig start                          find, assess and migrate, step by step"},
+            "glossary", new String[] {
+                    "Examples",
+                    "  adfmig glossary                       every ADF term, and what it becomes"});
+
+    /**
+     * Gives every command the same help as the top level.
+     *
+     * <p>Left alone, a subcommand prints a wrapped description and an option list, which reads
+     * like a manual page for a tool nobody chose. Someone typing {@code --help} on one command has
+     * already decided to use it and is asking how — so the headings match, and each one ends with
+     * the invocations worth copying.
+     */
+    private static void styleSubcommandHelp(CommandLine commandLine) {
+        commandLine.getSubcommands().forEach((name, subcommand) -> {
+            var usage = subcommand.getCommandSpec().usageMessage();
+            usage.headerHeading("%n");
+            usage.synopsisHeading("%nUsage%n  ");
+            usage.descriptionHeading("%n");
+            usage.parameterListHeading("%nArguments%n");
+            usage.optionListHeading("%nOptions%n");
+            usage.footerHeading("%n");
+            usage.footer(EXAMPLES.getOrDefault(name, new String[0]));
+            subcommand.setUsageHelpWidth(96);
+            subcommand.setUsageHelpAutoWidth(true);
+        });
+    }
 
     public static void main(String[] args) {
         CommandLine commandLine = new CommandLine(new AdfMig());
@@ -105,6 +179,7 @@ public final class AdfMig implements Runnable {
         var installed = ProExtension.find();
         installed.ifPresent(extension -> extension.commands().forEach(commandLine::addSubcommand));
         commandLine.getCommandSpec().usageMessage().footer(footer(installed.isPresent()));
+        styleSubcommandHelp(commandLine);
 
         System.exit(commandLine
                 // Someone typing a command that is sold rather than given away has not made a
@@ -112,7 +187,12 @@ public final class AdfMig implements Runnable {
                 // did not ask.
                 .setParameterExceptionHandler((e, unmatched) -> {
                     String attempted = unmatched.length > 0 ? unmatched[0] : "";
-                    if (SOLD_SEPARATELY.contains(attempted)) {
+                    // Only when the root command is the one refusing it. In the paid build these
+                    // commands exist, so a bad option inside one raises from the subcommand — and
+                    // answering that with "this is part of adfmig Pro" tells someone who already
+                    // bought it that they have not.
+                    boolean refusedByRoot = e.getCommandLine().getParent() == null;
+                    if (refusedByRoot && SOLD_SEPARATELY.contains(attempted)) {
                         var err = e.getCommandLine().getErr();
                         err.println();
                         err.printf("  '%s' is part of adfmig Pro.%n", attempted);

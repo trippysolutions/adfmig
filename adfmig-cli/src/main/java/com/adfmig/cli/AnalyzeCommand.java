@@ -40,8 +40,14 @@ public final class AnalyzeCommand implements Callable<Integer> {
     @Option(names = {"-o", "--json"}, description = "Write the resolved model to this file.")
     private Path jsonOut;
 
-    @Option(names = "--sql", description = "Show the full SQL behind each endpoint.")
+    @Option(names = "--sql", description = "Show the full SQL behind each endpoint. Implies --detail.")
     private boolean showSql;
+
+    @Option(names = {"-d", "--detail"},
+            description = "Expand every endpoint: bind variables, criteria, operations, grants "
+                    + "and custom Java. Without it the surface is one row per endpoint, because "
+                    + "an application of any size is hundreds of lines nobody reads.")
+    private boolean detail;
 
     @Option(names = "--all",
             description = "Analyse every application under the path, each on its own. "
@@ -109,21 +115,32 @@ public final class AnalyzeCommand implements Callable<Integer> {
 
         if (!multipleApplications(out, app)) return;
 
+        Verdict.of(app).print(out);
+
         out.println();
         out.println("  MODEL");
-        out.printf("      %-26s %5d%n", "Entity objects", app.entities().size());
-        out.printf("      %-26s %5d%n", "View objects", app.viewObjects().size());
-        out.printf("      %-26s %5d%n", "Application modules", app.modules().size());
-        out.printf("      %-26s %5d%n", "REST resources", app.restResources().size());
-        out.printf("      %-26s %5d%n", "Security policies", app.policies().size());
+        out.println();
+        Table model = Table.of("COUNT", "COMPONENT").right(0);
+        model.row(app.entities().size(), "Entity objects");
+        model.row(app.viewObjects().size(), "View objects");
+        model.row(app.modules().size(), "Application modules");
+        model.row(app.restResources().size(), "REST resources");
+        model.row(app.policies().size(), "Security policies");
+        model.print(out, "    ");
 
         List<Endpoint> endpoints = app.endpoints();
         if (endpoints.isEmpty()) {
             out.println();
-            out.println("  No published REST surface found.");
+            out.println("  No published REST surface found. Nothing consumes this application over");
+            out.println("  HTTP, so there is no contract to preserve — the API has to be designed");
+            out.println("  from what the page definitions read.");
         } else {
-            out.printf("%n  REST SURFACE (%d endpoints)%n", endpoints.size());
-            endpoints.forEach(e -> endpoint(out, e));
+            out.printf("%n  REST SURFACE  %s%n", Terminal.dim(endpoints.size() + " endpoint(s)"));
+            out.println();
+            surface(out, endpoints);
+            if (detail || showSql) endpoints.forEach(e -> endpoint(out, e));
+            else out.println("    " + Terminal.dim("adfmig analyze --detail   "
+                    + "bind variables, criteria, operations and grants for each"));
         }
 
         security(out, app, endpoints);
@@ -161,6 +178,40 @@ public final class AnalyzeCommand implements Callable<Integer> {
         roots.stream().limit(3).forEach(r -> out.printf("      adfmig analyze %s%n", r));
         if (roots.size() > 3) out.printf("      ... and %d more%n", roots.size() - 3);
         return false;
+    }
+
+    /**
+     * Every endpoint on one row: the URL, what answers it, and what it reads from.
+     *
+     * <p>This is the question the command exists to answer, and it used to take thirteen lines per
+     * endpoint to answer it — so on a real application the security findings below scrolled past
+     * unread. The expansion is still there behind --detail.
+     */
+    private void surface(PrintStream out, List<Endpoint> endpoints) {
+        Table table = Table.of("URL", "VIEW OBJECT", "READS FROM", "ATTRS", "ACCESS")
+                .width(0, 34).width(1, 26).width(2, 22).right(3);
+        for (Endpoint e : endpoints) {
+            ViewObject vo = e.viewObject();
+            table.row(e.url(),
+                    vo == null ? "" : simple(vo.fqn()),
+                    reads(e, vo),
+                    vo == null ? "" : vo.attributes().size(),
+                    e.isUngranted() ? Terminal.red("NO GRANT") : Terminal.green("secured"));
+        }
+        table.print(out, "    ");
+        out.println();
+    }
+
+    /** What the endpoint's rows actually come from, which is the end of the resolution chain. */
+    private static String reads(Endpoint e, ViewObject vo) {
+        if (e.entityObject() != null) return "table " + e.entityObject().dbObjectName();
+        if (vo != null && vo.isReadOnly()) return vo.customQuery() ? "native query (SQL)" : "native query";
+        return "unresolved";
+    }
+
+    private static String simple(String fqn) {
+        int dot = fqn.lastIndexOf('.');
+        return dot < 0 ? fqn : fqn.substring(dot + 1);
     }
 
     private void endpoint(PrintStream out, Endpoint e) {

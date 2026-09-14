@@ -20,10 +20,17 @@ All of that is XML sitting in the source tree. This reads it.
 | `*.bcs` | Groovy expressions attached to attributes and validators |
 | `jazn-data.xml` | roles and what they could reach |
 
-It does not read Java. Custom classes are reported by name and size, and what they do is left to
-a person, because guessing at compiled behaviour and being wrong is worse than saying nothing.
+It reads the hand-written Java too, but only to describe it. Knowing a custom class exists is
+enough to warn about and not enough to price: an override that applies a view criteria and returns
+a count is an afternoon, one that walks a row set issuing its own SQL is a week, and scoring both
+the same makes every estimate wrong. So each method is read and classified — has a direct Spring
+equivalent, needs review, or must be rewritten — and nothing is executed, rewritten or guessed at.
 
 ## What it writes
+
+This half writes an assessment: a report, and the answers the commands print. The rest of this
+page describes what **adfmig Pro** generates, because what the assessment is judging is whether
+that generation would succeed.
 
 A Maven project that depends on neither adfmig nor the ADF runtime. That independence is the
 point of the migration: nothing generated here ties you to the thing you are leaving, or to the

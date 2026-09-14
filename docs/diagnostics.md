@@ -13,10 +13,12 @@ artifact, the subject, the generated file and the suggested action for each.
 | `COMPOSITE_KEY_NOT_ADDRESSABLE` | skipped | The key has several columns, so one path variable cannot address a row |
 | `ENDPOINT_NOT_SERVED` | skipped | The application module behind this URL generated no method for the view instance it reads, so there is nothing for a controller to call |
 | `ENDPOINT_UNRESOLVED` | skipped | The chain from URL to query is broken in the source application |
-| `ENTITY_EXTENDS_ANOTHER` | skipped | The entity extends another |
+| `ENTITY_EXTENDS_ANOTHER` | skipped | The entity extends another and the two are not a subtype pair — a different table, a parent in another project, or no column saying which of the two a row is. A real subtype is carried across as JPA single-table inheritance and is not reported here |
 | `FILE_EDITED_NOT_OVERWRITTEN` | skipped | The file has changed since the generator wrote it, so it was left alone |
 | `MASTER_DETAIL_NOT_EXPOSED` | skipped | The application exposes a nested collection through a view link, and the generated API does not |
 | `NO_PRIMARY_KEY` | skipped | JPA has no identity to map |
+| `VIEW_NEEDS_UNGENERATED_ENTITY` | skipped | The view object reads through an entity that could not be generated, so the collection was declined with it rather than written against a class nobody wrote |
+| `VIEW_INSTANCE_NOT_PUBLISHED` | skipped | An application module names a view instance that no REST resource publishes, no screen binds and no view link joins to one that does |
 | `OPERATION_NAME_ALREADY_USED` | skipped | Two view objects in one application module publish an operation with the same name and the same parameter types |
 | `PROGRAMMATIC_VIEW_OBJECT` | skipped | The view object is populated by Java code, not by a query |
 | `QUERY_FILTER_NOT_CARRIED_OVER` | skipped | The view object narrowed its query and the narrowing was not carried over, so the endpoint serves rows the original did not |
@@ -39,6 +41,7 @@ artifact, the subject, the generated file and the suggested action for each.
 | `VALIDATION_NOT_TRANSLATED` | warning | A validation rule delegates to an expression and could not be turned into a constraint |
 | `VERSION_COLUMN_UNSUPPORTED_TYPE` | warning | ADF used a column for optimistic locking whose type JPA cannot use as a version |
 | `VIEW_NOT_DATABASE_BACKED` | warning | View object does not read from the database |
+| `ENTITIES_DISAGREE_ON_COLUMN` | warning | Two entities map the same column of the same table and type it differently. Only one can match the database, so one of them reads it wrongly — in the original as much as after a migration |
 | `ADF_TYPE_MAPPED` | info | An Oracle runtime type was replaced by its Java equivalent |
 | `CONTROLLER_GENERATED` | info | REST controller generated |
 | `ENTITY_GENERATED` | info | JPA entity generated |

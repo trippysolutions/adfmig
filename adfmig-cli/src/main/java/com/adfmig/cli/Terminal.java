@@ -86,14 +86,57 @@ public final class Terminal {
             return new Progress(out, what);
         }
 
-        /** Updates the line. Cheap enough to call often; it only redraws at a terminal. */
+        /**
+         * Notes progress, and draws nothing.
+         *
+         * <p>This redrew one line in place, naming each application as it was read. On a real
+         * terminal it did not stay on one line: it produced several hundred, stair-stepped across
+         * the screen, burying the output the command was run for. Two attempts to fix the redraw
+         * failed, both made from a machine with no terminal attached, where the code takes a
+         * different path and the fault cannot be seen.
+         *
+         * <p>A survey takes a few seconds and ends by saying what it found. A spinner naming
+         * files during it was never something anyone acted on, and losing the wanted output in
+         * unwanted output is a worse failure than having no spinner.
+         */
         public void update(String detail) {
-            if (!INTERACTIVE) return;
-            String line = String.format("  %c %s  %s", FRAMES[frame++ % FRAMES.length], what, detail);
-            clear();
-            out.print(line);
-            out.flush();
-            written = line.length();
+            // Deliberately nothing. Kept so callers need not know whether anyone is watching.
+        }
+
+        /**
+         * Keeps a progress line on one row.
+         *
+         * <p>A line longer than the window wraps, and then erasing it by writing its own length in
+         * spaces wraps again and leaves the cursor somewhere else entirely — every update after
+         * that lands further down the screen, and what should be one line redrawing becomes
+         * hundreds of them. What it is reporting is never important enough to be worth that, so
+         * the middle is dropped and the ends kept: the ends are what identifies it.
+         */
+        private static String fit(String line) {
+            int width = columns();
+            if (line.length() <= width) return line;
+            int keep = (width - 3) / 2;
+            return line.substring(0, keep) + "..." + line.substring(line.length() - keep);
+        }
+
+        /**
+         * The window's width.
+         *
+         * <p>Java offers no way to ask, so this reads what the shell exports and falls back to
+         * the narrowest window anyone still uses. Guessing too small costs a shortened line;
+         * guessing too large costs the wrapping this exists to prevent.
+         */
+        private static int columns() {
+            String declared = System.getenv("COLUMNS");
+            if (declared != null) {
+                try {
+                    int value = Integer.parseInt(declared.trim());
+                    if (value > 20) return value - 1;
+                } catch (NumberFormatException ignored) {
+                    // An unparseable COLUMNS is not worth a word to anyone.
+                }
+            }
+            return 79;
         }
 
         /** Replaces the line with a final one, so the terminal is left showing the outcome. */
@@ -111,9 +154,16 @@ public final class Terminal {
             return ms < 1000 ? "" : String.format("  (%.1fs)", ms / 1000.0);
         }
 
+        /**
+         * Erases the line.
+         *
+         * <p>Asks the terminal to clear from the cursor to the end of the row rather than writing
+         * that many spaces. Spaces have to be counted, and a count that is wrong by even one
+         * character — a wide glyph, a line that wrapped — leaves debris or moves the cursor.
+         */
         private void clear() {
             if (written > 0) {
-                out.print("\r" + " ".repeat(written) + "\r");
+                out.print("\r\u001b[K");
                 written = 0;
             }
         }

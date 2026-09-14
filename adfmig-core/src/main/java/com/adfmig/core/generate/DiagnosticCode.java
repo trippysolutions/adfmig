@@ -166,6 +166,34 @@ public enum DiagnosticCode {
     OPERATION_NAME_ALREADY_USED(Severity.SKIPPED, "Skipped: operation name already used"),
 
     /**
+     * Two entities map the same column of the same table and disagree about its type — one says
+     * NUMBER and the other String for the very same column. Only one can be right about the
+     * database, so one of them reads that column wrongly, in ADF as much as after a migration.
+     *
+     * <p>Nothing can resolve it from the metadata, because the metadata is the thing that
+     * disagrees with itself. It is reported so someone can look at the column.
+     */
+    ENTITIES_DISAGREE_ON_COLUMN(Severity.WARNING, "Two entities type one column differently"),
+
+    /**
+     * The view object reads through an entity that could not be generated — most often one with
+     * no primary key. A repository, a service and a controller written against it would name a
+     * class nobody wrote, so the whole collection is left out rather than half of it.
+     */
+    VIEW_NEEDS_UNGENERATED_ENTITY(Severity.SKIPPED, "Skipped: the entity this reads was not generated"),
+
+    /**
+     * An application module names a view instance that nothing reaches: no REST resource publishes
+     * it, no screen binds it and no view link joins it to one that is. Generating a service for it
+     * would ship a class to a customer that no route and no other class ever calls.
+     *
+     * <p>Reported rather than removed quietly, because the instance is part of the module's own
+     * interface and whether to keep publishing it is a decision about the application, not about
+     * the migration.
+     */
+    VIEW_INSTANCE_NOT_PUBLISHED(Severity.SKIPPED, "Skipped: view instance is published by nothing"),
+
+    /**
      * The application module behind this URL generated no method for the view instance it reads,
      * so there is nothing for a controller to call. A controller written anyway would name a
      * method the run decided not to generate.

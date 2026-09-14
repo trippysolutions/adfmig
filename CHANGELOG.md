@@ -7,6 +7,28 @@ added, the third when something is fixed.
 Nothing in adfmig checks for updates or contacts anything, so new versions do not arrive on their
 own. To hear about them: **Watch → Custom → Releases** on this repository.
 
+## 0.1.2
+
+The console says the answer first. `adfmig apps` printed several hundred rows before the summary
+anyone was reading it for; now it prints the summary, and the per-application table is behind
+`--list`, with `--filter` and `--profile` to narrow it. `adfmig analyze` printed thirteen lines per
+endpoint, so on an application of any size the security findings scrolled past unread; the surface
+is now one row per endpoint with the detail behind `--detail`. Every command reports a verdict —
+whether the source says enough to generate working code — before any arithmetic.
+
+The walkthrough no longer loses people at its first two questions. A path it cannot find is
+answered with the two mistakes people actually make: a typo in one segment, and an absolute path
+where a path under the home directory was meant. The application list is a shortlist you can
+search rather than several hundred numbered lines.
+
+Every command's `--help` now carries examples, and there is a full
+[command reference](docs/commands.md).
+
+Added: [`docs/commands.md`](docs/commands.md). Three diagnostics documented that the generator
+could already report — `ENTITIES_DISAGREE_ON_COLUMN`, `VIEW_INSTANCE_NOT_PUBLISHED` and
+`VIEW_NEEDS_UNGENERATED_ENTITY` — and `ENTITY_EXTENDS_ANOTHER` narrowed: a genuine ADF subtype is
+now carried across rather than reported.
+
 ## 0.1.1
 
 **If you produced a report with 0.1.0, its estate total was too high.** A project containing no
